@@ -1,0 +1,547 @@
+---
+title: "Data Visualisation with ggplot2 - Project"
+output: html_notebook
+---
+
+# AfterWork Data Science: Data Visualisation with Python Project
+
+## 1. Defining the Question
+
+### a) Specifying the Data Analysis Question
+Specify the reasearch question that you'll be answering. i.e. Provide strategy recommendations that will lead to revenue growth.
+
+### b) Defining the Metric for Success
+The solutions to the following questions will help us answer our research question:
+
+* When is the best time of year to book a hotel room?
+* When is the optimal length of stay in order to get the best daily rate?
+* How will you know if a hotel was likely to receive a disproportionately high number of special requests?
+
+### c) Understanding the context
+Provide some background information....
+
+### d) Recording the Experimental Design
+Describe the steps/approach that you will use to answer the given question.
+
+### e) Data Relevance
+How relevant was the provided data?
+
+
+## 2. Reading the Data
+
+```{r}
+# Load the data below
+# --- 
+# Dataset url = https://bit.ly/2WvQbhJ
+ 
+# --- 
+# YOUR CODE GOES BELOW
+Bookings_df<- read.csv("/cloud/project/hotel_bookings.csv")
+Bookings_df
+```
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# Checking the first 5 rows of data
+# ---
+head(Bookings_df, 5)
+```
+
+```{r}
+# Checking the last 5 rows of data
+# ---
+tail(Bookings_df, 5)
+
+```
+
+```{r}
+# Sample 10 rows of data
+# ---
+sample(Bookings_df, 10)
+```
+
+```{r}
+# Checking number of rows and columns
+# ---
+dim(Bookings_df)
+#  
+```
+
+```{r}
+# Checking datatypes
+# ---
+library(dplyr)
+glimpse(Bookings_df)
+# 
+```
+The data set has 118,201 rows and 32 columns
+Some columns have null values 
+
+
+## 3. External Data Source Validation
+The data is originally from the article Hotel Booking Demand Datasets, by Nuno Antonio, Ana Almeida, and Luis Nunes for Data in Brief, Volume 22, February 2019.
+
+
+## 4. Data Preparation
+### Performing Data Cleaning
+```{r}
+# Checking datatypes and missing entries of all the variables
+# ---
+str(Bookings_df)
+
+
+```
+```{r}
+colSums(is.na(Bookings_df))
+```
+
+We observe the following from our dataset:
+
+Observation 1 
+Children variable has 4 missing values
+
+Observation 2
+days_in_waiting_list,adr &  total_of_special_requests each has 1 missing value
+```{r}
+# Checking how many duplicate rows are there in the data
+# ---
+Bookings_df[duplicated(Bookings_df), ]
+
+```
+
+We choose to keep the duplicates because we don't have a unique identifier to actually proof that we have duplicates.
+
+```{r}
+# Checking if any of the columns are all null
+# ---
+colSums(is.na(Bookings_df))
+# 
+```
+
+We observe the following from our dataset:
+
+Observation 1
+Children has 4 missing values
+
+```{r}
+# Checking if any of the rows are all null
+# ---
+is.na(Bookings_df)
+# 
+```
+
+We observe the following from our dataset:
+
+Observation 1
+There are no rows with all null
+
+
+```{r}
+# Checking the correlation of the features through the use of 
+# visualizations the correlation using heatmap
+
+install.packages("reshape")
+library(reshape)
+```
+
+
+```{r}
+# Select the desired columns
+Bookings_df <- Bookings_df %>%
+na.omit() %>%
+  select()
+
+```
+
+
+```{r}
+# Create a correlation matrix
+corr_matrix <- cor(Bookings_df, method="s")
+head(corr_matrix)
+
+```
+
+
+
+
+
+```{r}
+# Create a table with long form
+corr_df <- melt(corr_matrix)
+corr_df
+
+```
+
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+
+
+```{r}
+# Plot the heatmap
+ggplot(corr_df, aes(X1, X2, fill = value)) + 
+  geom_tile(color = "black") + 
+  geom_text(
+    aes(label = round(value, 2)), 
+    color = "white"
+  ) +
+  coord_fixed() + 
+  labs(
+    fill="Pearson Correlation"
+  ) +
+  scale_fill_gradient2(
+    low = "blue", 
+    high = "red",
+    mid = "white", 
+    limit = c(-1,1)
+  ) + 
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+```
+
+
+
+We observe the following from our dataset:
+No correlation 
+
+
+```{r}
+glimpse(Bookings_df)
+```
+
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+```
+
+
+
+
+```{r}
+# Dropping company column because it has alot of missing values 
+# and we won't need to answer any of our questions
+
+library(dplyr)
+Bookings_df1 <- Bookings_df
+select (Bookings_df,-c(company))
+```
+
+
+From the data variable description we see that the Distribution Channel categoricy that tells us about Booking distribution.
+
+The term “TA” means “Travel Agents”
+The term “TO” means “Tour Operators”
+This allows us to fill the missing values in the agents column with TO
+
+```{r}
+# We replace the mising values i.e. for TO
+# ---
+Bookings_df$distribution_channel[is.na(Bookings_df$distribution_channel)] <- "TO"
+Bookings_df
+
+```
+
+```{r}
+# We drop rows where there is no adult, baby and child as 
+# these records won't help us.
+# ---
+adults <-Bookings_df1$adults
+babies <-Bookings_df1$babies
+child <-Bookings_df1$children
+Bookings_df2 <- subset(Bookings_df, adults!="0" & babies!="0" & child!="0")
+head(Bookings_df2)
+#Bookings_df2 <- Bookings_df1[-c(adults == 0), ]
+```
+
+```{r}
+# We replace missing children values with rounded mean value
+# ---
+# Hint i.e. use round()
+# ---
+Bookings_df2$children[is.na(Bookings_df2$children)] <- mean(dt$age, na.rm = TRUE)
+Bookings_df2
+```
+
+```{r}
+# Checking for missing values in the dataframe
+# ---
+is.na(Bookings_df2)
+#
+```
+
+```{r}
+# Converting the datatypes of the following columns from float to integer
+# i.e. children, company, agent
+# ---
+# YOUR GOES BELOW
+lapply(Bookings_df2$children,as.numeric)
+lapply(Bookings_df2$company,as.numeric)
+lapply(Bookings_df2$agent,as.numeric)
+#  Bookings_df <- Bookings_df %>% 
+#     mutate_at(c(11, 24, 25), as.integer())
+```
+
+
+## 5. Solution Implementation
+
+### 5.a) Questions
+
+```{r}
+# 1. How many bookings were cancelled?
+# Visualisation: Barplot
+# Create the summary table
+cancelled_df <- Bookings_df2 %>%
+  group_by(hotel) %>%
+summarise(is_canceled = sum(is_canceled))
+```
+
+```{r}
+# Plotting Barplot chart to visualize the data
+ggplot(cancelled_df, aes(x = hotel, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Cancelled Bookings per Hotel", 
+    x = "hotel", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  ) +
+  geom_text(aes(label = is_canceled, face = "bold"), vjust = 1.5, colour = "black")
+```
+City hotel had 13 cancelled bookings while resort hotel had 20 cancelled bookings
+
+```{r}
+# 2. What was the booking ratio between resort hotel and city hotel?
+# Create the summary table
+ratio_df <- Bookings_df %>%
+  group_by(hotel) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+
+
+
+# Barplot of booking ratio between resort hotel and city hotel
+ggplot(ratio_df, aes(x = hotel, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Bookings per Hotel", 
+    x = "hotel", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  ) +
+  geom_text(aes(label = paste0(round(is_canceled / sum(is_canceled) * 100, 1), "%")), vjust = 1.5, colour = "black")
+```
+
+City hotel had a ratio of 60.9% and resort hotel had a ratio of 39.1%
+
+```{r}
+# 3. What was the percentage of booking for each year?
+year_df <- Bookings_df %>%
+  group_by(arrival_date_year) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+
+# Plotting Barplot chart to visualize the data
+# Plotting Barplot chart to visualize the data
+ggplot(year_df, aes(x = arrival_date_year, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Bookings per Year", 
+    x = "year", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  ) +
+  geom_text(aes(label = paste0(round(is_canceled / sum(is_canceled) * 100, 1), "%")), vjust = 1.5, colour = "black")
+```
+2016 had the highest bookings at 49.2% followed by 2017 at 32.1% and finally 2015 at 18.7% 
+
+
+```{r}
+# 4. Which were the most busiest months for hotels?
+month_df <- Bookings_df %>%
+  group_by(arrival_date_month) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+
+
+# Plotting Barplot chart to visualize the data
+ggplot(month_df, aes(x = arrival_date_month, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Bookings per Month", 
+    x = "month", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  geom_text(aes(label = paste0(round(is_canceled / sum(is_canceled) * 100, 1), "%")), vjust = 1.5, colour = "black")
+
+```
+Most bookings are in the months of July and August
+
+```{r}
+# 5. From which top 3 countries did most guests come from?
+countries_df <- Bookings_df %>%
+  group_by(country) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+countries_df
+arrange(countries_df,desc(is_canceled))
+
+#Filtering to get the top three countries
+top3_countries_df <- filter(countries_df, country == "PRT" | country == "GBR" | country == "FRA")
+top3_countries_df
+
+# Plotting Barplot chart to visualize the data
+ggplot(top3_countries_df, aes(x = country, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Bookings per Month", 
+    x = "country", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  geom_text(aes(label = paste0(round(is_canceled / sum(is_canceled) * 100, 1), "%")), vjust = 1.5, colour = "black")
+```
+PRT had the highest number of customers booking, followed by GBR and FRA in the third position
+
+
+
+```{r}
+# 6.a) How long do most people stay in hotels?
+#   b) By city and resort? Separate the data by hotel
+
+stays_df <- Bookings_df %>%
+  mutate(total_stays = stays_in_weekend_nights + stays_in_week_nights) %>%
+  group_by(total_stays) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+  arrange(stays_df, desc(is_canceled))
+stays_df
+
+# Plotting Barplot chart to visualize the data
+ggplot(stays_df, aes(x = total_stays)) +
+  geom_histogram(
+    bins = 10,fill = "#0099f9"
+  ) +
+  labs(
+    title = "Sum of Total stays in nights", 
+    x = "total_stays", 
+    y = "Frequency"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )+
+  scale_x_continuous(breaks = seq(0, 50,by=5))
+```
+Most people stay between 0 to 20 days
+
+
+```{r}
+# 7. Which was the most booked accommodation type (Single, Couple, Family)?
+accommodation_df <- Bookings_df %>%
+  mutate(hotel_accommodation =
+           case_when(
+             Bookings_df$adults >= 0 & (Bookings_df$children >= 1 | Bookings_df$babies >= 1) ~ "Family",
+             Bookings_df$adults == 2 & Bookings_df$children == 0 & Bookings_df$babies == 0 ~ "Couple",
+             Bookings_df$adults == 1 & Bookings_df$children == 0 & Bookings_df$babies == 0 ~ "Single",
+            Bookings_df$adults > 2 & (Bookings_df$children == 0 | Bookings_df$babies == 0) ~ "Family")
+  )%>%
+  filter(is_canceled == 0)
+  
+accommodation_df1 <- accommodation_df %>%
+  group_by(hotel_accommodation) %>%
+  count(hotel_accommodation)
+
+#Plotting the bar chart
+ggplot(accommodation_df1, aes(x = hotel_accommodation, y = n, fill = accommodation_df)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Sum of Hotel Accommodataion by accomodation type",
+    x = "Hotel Accommodation", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+Couples make up the largest bookings, followed by singles and Family
+
+
+### 5.b) Recommendations
+From the above analysis, below are our recommendations:
+
+More family products should be tailored so as to encourage more bookings from that segment
+Offers and discounts around long stays should be considered as longer stays increase revenue
+Capacity building should be done for the months of July and August to cater for the many bookings
+
+
+## 6. Challenging your Solution
+In this step, we review our solution and implement approaches that could potentially provide a better outcome. In our case, we could propose the following question that wasn't answered in our solution because it couldn't have greatly contributed to our recommendation.
+
+```{r}
+# When should hotels provide special offers?
+month_df <- Bookings_df %>%
+  group_by(arrival_date_month) %>%
+  summarise(is_canceled = sum(is_canceled==0))
+# Plotting Barplot chart to visualize the data
+ggplot(month_df, aes(x = arrival_date_month, y = is_canceled)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "#0099f9"
+  ) +
+  labs(
+    title = "Bookings per Month", 
+    x = "month", 
+    y = "Bookings"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=12, family="Times New Roman"), 
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  geom_text(aes(label = paste0(round(is_canceled / sum(is_canceled) * 100, 1), "%")), vjust = 1.5, colour = "black")
+```
+Give offers in rates In the months of January, December and November to try and boost bookings
+
+
+Our observations:
+-
+
+How does this observation tie to our solution?
+
+## 7. Follow up questions
+During this step, you rethink and propose other ways that you can improve your solution.
+
+a). Did we have the right data?YES we did
+b). Do we need other data to answer our question?No, the data was sufficient
+c). Did we have the right question?Yes we did 
+
+
